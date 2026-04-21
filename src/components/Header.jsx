@@ -1,4 +1,7 @@
 import { Bookmark, Search, Star, Bell, ChevronDown } from 'lucide-react'
+import { mockOpenToWork, isNewSignal } from '../data/mockOpenToWork.js'
+
+const newOpenToWorkCount = mockOpenToWork.filter(c => isNewSignal(c.openToWorkSince)).length
 
 export default function Header({ activeTab, setActiveTab, savedCount }) {
   return (
@@ -33,6 +36,22 @@ export default function Header({ activeTab, setActiveTab, savedCount }) {
         >
           <Star className="w-3.5 h-3.5" />
           Recommended
+        </button>
+        <button
+          onClick={() => setActiveTab('opentowork')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+            activeTab === 'opentowork'
+              ? 'bg-green-50 text-green-700 ring-1 ring-green-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          <Bell className="w-3.5 h-3.5" />
+          Open to Work
+          {newOpenToWorkCount > 0 && (
+            <span className="text-xs px-1.5 py-0.5 bg-green-500 text-white rounded-full font-semibold leading-none">
+              {newOpenToWorkCount}
+            </span>
+          )}
         </button>
       </nav>
 

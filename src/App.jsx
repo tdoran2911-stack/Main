@@ -3,6 +3,7 @@ import Header from './components/Header.jsx'
 import SearchFilters from './components/SearchFilters.jsx'
 import SearchResults from './components/SearchResults.jsx'
 import RecommendedFeed from './components/RecommendedFeed.jsx'
+import OpenToWorkFeed from './components/OpenToWorkFeed.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
 import { mockCandidates } from './data/mockCandidates.js'
 import { PREFERRED_SCHOOLS } from './data/schools.js'
@@ -105,16 +106,23 @@ export default function App() {
 
         {/* Center: Candidate feed */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
-          {activeTab === 'search' ? (
+          {activeTab === 'search' && (
             <SearchResults
               candidates={searchResults}
               savedCandidates={savedCandidates}
               onToggleSave={toggleSave}
               total={mockCandidates.length}
             />
-          ) : (
+          )}
+          {activeTab === 'recommended' && (
             <RecommendedFeed
               candidates={recommended}
+              savedCandidates={savedCandidates}
+              onToggleSave={toggleSave}
+            />
+          )}
+          {activeTab === 'opentowork' && (
+            <OpenToWorkFeed
               savedCandidates={savedCandidates}
               onToggleSave={toggleSave}
             />
