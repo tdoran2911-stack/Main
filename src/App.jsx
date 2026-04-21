@@ -1,10 +1,12 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Header from './components/Header.jsx'
 import SearchFilters from './components/SearchFilters.jsx'
 import SearchResults from './components/SearchResults.jsx'
 import RecommendedFeed from './components/RecommendedFeed.jsx'
 import OpenToWorkFeed from './components/OpenToWorkFeed.jsx'
+import PipelineTab from './components/PipelineTab.jsx'
 import NewsSidebar from './components/NewsSidebar.jsx'
+import { searchCandidates } from './services/pdlService.js'
 import { mockCandidates } from './data/mockCandidates.js'
 import { PREFERRED_SCHOOLS } from './data/schools.js'
 
@@ -22,59 +24,29 @@ const DEFAULT_FILTERS = {
   seniority: [],
 }
 
-function applyFilters(candidates, filters) {
-  return candidates.filter(c => {
-    if (filters.keywords) {
-      const kw = filters.keywords.toLowerCase()
-      const haystack = [c.name, c.title, c.currentCompany, ...c.skills, c.bio].join(' ').toLowerCase()
-      if (!haystack.includes(kw)) return false
-    }
-    if (filters.title) {
-      if (!c.title.toLowerCase().includes(filters.title.toLowerCase())) return false
-    }
-    if (filters.company) {
-      if (!c.currentCompany.toLowerCase().includes(filters.company.toLowerCase())) return false
-    }
-    if (c.yearsOfExperience < filters.minExp || c.yearsOfExperience > filters.maxExp) return false
-    if (filters.skills.length > 0) {
-      const hasAll = filters.skills.every(s => c.skills.includes(s))
-      if (!hasAll) return false
-    }
-    if (filters.undergradSchools.length > 0) {
-      if (!filters.undergradSchools.includes(c.undergrad.school)) return false
-    }
-    if (filters.gradSchools.length > 0) {
-      if (!c.grad || !filters.gradSchools.includes(c.grad.school)) return false
-    }
-    if (filters.degreeField) {
-      const ugMatch = c.undergrad.field === filters.degreeField
-      const gradMatch = c.grad && c.grad.field === filters.degreeField
-      if (!ugMatch && !gradMatch) return false
-    }
-    if (filters.openToWork && !c.openToWork) return false
-    if (filters.seniority.length > 0) {
-      const seniorityMap = {
-        Junior: ['Software Engineer'],
-        Mid: ['Software Engineer', 'Senior Software Engineer'],
-        Senior: ['Senior Software Engineer'],
-        Staff: ['Staff Software Engineer'],
-        Principal: ['Principal Software Engineer'],
-      }
-      const matched = filters.seniority.some(s =>
-        seniorityMap[s]?.some(t => c.title.includes(t.replace('Software Engineer', '').trim()) || c.title === t)
-      )
-      if (!matched) return false
-    }
-    return true
-  })
-}
-
 export default function App() {
   const [activeTab, setActiveTab] = useState('search')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
   const [savedCandidates, setSavedCandidates] = useState(new Set())
 
-  const searchResults = useMemo(() => applyFilters(mockCandidates, filters), [filters])
+  // PDL-powered search with debounce
+  const [searchResults, setSearchResults] = useState(mockCandidates)
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchSource, setSearchSource] = useState('mock')
+
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const result = await searchCandidates(filters)
+        setSearchResults(result.candidates)
+        setSearchSource(result.source)
+      } finally {
+        setSearchLoading(false)
+      }
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [filters])
 
   const recommended = useMemo(() =>
     mockCandidates
@@ -90,6 +62,9 @@ export default function App() {
     })
   }
 
+  // Hide filters panel on pipeline tab (not needed there)
+  const showFilters = activeTab !== 'pipeline'
+
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
       <Header
@@ -99,10 +74,12 @@ export default function App() {
       />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Filters */}
-        <aside className="w-72 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto scrollbar-thin">
-          <SearchFilters filters={filters} setFilters={setFilters} onReset={() => setFilters(DEFAULT_FILTERS)} />
-        </aside>
+        {/* Left: Filters (hidden on pipeline tab) */}
+        {showFilters && (
+          <aside className="w-72 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto scrollbar-thin">
+            <SearchFilters filters={filters} setFilters={setFilters} onReset={() => setFilters(DEFAULT_FILTERS)} />
+          </aside>
+        )}
 
         {/* Center: Candidate feed */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">
@@ -112,6 +89,8 @@ export default function App() {
               savedCandidates={savedCandidates}
               onToggleSave={toggleSave}
               total={mockCandidates.length}
+              loading={searchLoading}
+              source={searchSource}
             />
           )}
           {activeTab === 'recommended' && (
@@ -126,6 +105,9 @@ export default function App() {
               savedCandidates={savedCandidates}
               onToggleSave={toggleSave}
             />
+          )}
+          {activeTab === 'pipeline' && (
+            <PipelineTab />
           )}
         </main>
 

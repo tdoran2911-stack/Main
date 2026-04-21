@@ -53,6 +53,16 @@ export default function Header({ activeTab, setActiveTab, savedCount }) {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('pipeline')}
+          className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-1.5 ${
+            activeTab === 'pipeline'
+              ? 'bg-brand-50 text-brand-700 ring-1 ring-brand-200'
+              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+          }`}
+        >
+          Pipeline
+        </button>
       </nav>
 
       <div className="flex-1" />

@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Bell, ExternalLink, Mail, Bookmark, MapPin, Briefcase, GraduationCap, Link, ChevronDown, AlertCircle } from 'lucide-react'
-import { mockOpenToWork, RECRUITER_PROJECTS, isNewSignal, signalAge } from '../data/mockOpenToWork.js'
+import { useState, useEffect, useCallback } from 'react'
+import { Bell, ExternalLink, Mail, Bookmark, MapPin, Briefcase, GraduationCap, Link, ChevronDown, AlertCircle, RefreshCw, Clock } from 'lucide-react'
+import { RECRUITER_PROJECTS, isNewSignal, signalAge } from '../data/mockOpenToWork.js'
+import { fetchOpenToWorkSignals } from '../services/linkedinRscService.js'
 import { isPreferredSchool } from '../data/schools.js'
 
 const AVATAR_COLORS = [
@@ -193,11 +194,27 @@ function OpenToWorkCard({ candidate, isSaved, onToggleSave }) {
 export default function OpenToWorkFeed({ savedCandidates, onToggleSave }) {
   const [projectFilter, setProjectFilter] = useState('All')
   const [typeFilter, setTypeFilter] = useState('All')
-  const linkedInConnected = false // flip to true once RSC is wired up
+  const [candidates, setCandidates] = useState([])
+  const [source, setSource] = useState('mock')
+  const [lastSynced, setLastSynced] = useState(null)
+  const [syncing, setSyncing] = useState(false)
 
-  const newCount = mockOpenToWork.filter(c => isNewSignal(c.openToWorkSince)).length
+  const linkedInConnected = source === 'linkedin'
 
-  const filtered = mockOpenToWork.filter(c => {
+  const sync = useCallback(async () => {
+    setSyncing(true)
+    const result = await fetchOpenToWorkSignals()
+    setCandidates(result.candidates)
+    setSource(result.source)
+    setLastSynced(result.lastSynced)
+    setSyncing(false)
+  }, [])
+
+  useEffect(() => { sync() }, [sync])
+
+  const newCount = candidates.filter(c => isNewSignal(c.openToWorkSince)).length
+
+  const filtered = candidates.filter(c => {
     if (projectFilter !== 'All' && c.recruiterProject !== projectFilter) return false
     if (typeFilter !== 'All' && c.openToWorkType !== typeFilter) return false
     return true
@@ -210,16 +227,31 @@ export default function OpenToWorkFeed({ savedCandidates, onToggleSave }) {
 
       {/* Header */}
       <div className="px-6 mt-5 mb-4">
-        <div className="flex items-center gap-2">
-          <Bell className="w-5 h-5 text-green-600" />
-          <h2 className="text-lg font-semibold text-slate-900">Recently Open to Work</h2>
-          {newCount > 0 && (
-            <span className="text-xs px-2 py-0.5 bg-green-500 text-white rounded-full font-semibold">{newCount} new</span>
-          )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5 text-green-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Recently Open to Work</h2>
+            {newCount > 0 && (
+              <span className="text-xs px-2 py-0.5 bg-green-500 text-white rounded-full font-semibold">{newCount} new</span>
+            )}
+            <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${linkedInConnected ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' : 'bg-slate-100 text-slate-500'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${linkedInConnected ? 'bg-blue-500' : 'bg-slate-400'}`} />
+              {linkedInConnected ? 'Live · LinkedIn RSC' : 'Mock data'}
+            </div>
+          </div>
+          <button onClick={sync} disabled={syncing} className="flex items-center gap-1.5 text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-600 disabled:opacity-50">
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
+            Sync
+          </button>
         </div>
         <p className="text-sm text-slate-500 mt-1">
-          {filtered.length} candidates from your Recruiter projects · sorted by most recent signal
+          {syncing ? 'Syncing with LinkedIn Recruiter…' : `${filtered.length} candidates from your Recruiter projects · sorted by most recent signal`}
         </p>
+        {lastSynced && (
+          <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Last synced {lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mt-3">
